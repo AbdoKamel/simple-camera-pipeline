@@ -1,29 +1,77 @@
-function [ output_image ] = run_pipeline( input_image, metadata, ...
+function [ output_image, lin_xyz ] = run_pipeline( input_image, metadata, ...
     input_stage, output_stage, cfastr, wb_raw, xyz2cam, crop  )
 %RUN_PIPELINE Run a raw image through the pipeline and return the image
 % after the specified 'stage'. stages are: 'raw', 'normal', 'wb',
 % 'demosaic', 'srgb', 'tone'
+
+% check correct SubIFD
+metadatax = metadata;
+if metadata.BitDepth ~= 16 % for raw DNG
+    if isfield(metadata, 'SubIFDs')
+        n_sub = numel(metadata.SubIFDs);
+        for k = 1 : n_sub
+            if metadata.SubIFDs{k}.BitDepth == 16
+                metadatax = metadata.SubIFDs{k};
+                break;
+            end
+        end
+    end
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% normalization
 
 if strcmp(input_stage, 'raw')
     
     % cropping area
-    if exist ('crop','var') && strcmp(crop, 'crop')
-        activeArea = GetActiveArea(metadata);
-        input_image = input_image(activeArea(1):activeArea(3), ...
-                                  activeArea(2):activeArea(4));
+    %if exist ('crop','var') && strcmp(crop, 'crop')
+        %activeArea = GetActiveArea(metadata);
+        %input_image = input_image(activeArea(1):activeArea(3), ...
+         %                         activeArea(2):activeArea(4));
+        cropArea = GetCropArea(metadata); % zero-based index, I guess!
+        input_image = input_image(cropArea(1)+1:cropArea(3)+0, ...
+                                  cropArea(2)+1:cropArea(4)+0);
+    %end
+    
+    % linearization
+    if isfield(metadatax, 'LinearizationTable')
+        lt = metadatax.LinearizationTable;
+        input_image = lt(input_image + 1); % for zero-based index
     end
     
     if isfield(metadata,'BlackLevel')
         black = metadata.BlackLevel(1);
         saturation = metadata.WhiteLevel;
+        if isfield(metadata, 'BlackLevelDeltaV')
+            bldv = metadata.BlackLevelDeltaV;
+        end
+        if isfield(metadata, 'BlackLevelDeltaH')
+            bldh = metadata.BlackLevelDeltaH;
+        end
     else
         black = metadata.SubIFDs{1,1}.BlackLevel(1);
         saturation = metadata.SubIFDs{1,1}.WhiteLevel;
+        try
+            bldv = metadata.SubIFDs{1,1}.BlackLevelDeltaV;
+        catch
+        end
+        try
+            bldh = metadata.SubIFDs{1,1}.BlackLevelDeltaH;
+        catch
+        end
     end
+    
     input_image=double(input_image);
-
+    
+    if exist('bldv', 'var') %&& bldv ~= 0
+        bldv = bldv';
+        bldv = bldv(1 : size(input_image, 1));
+        input_image = input_image - repmat(bldv, 1, size(input_image, 2)); 
+    end
+    if exist('bldh', 'var') %&& bldh ~= 0
+        bldh = bldh(1 : size(input_image, 2));
+        input_image = input_image - repmat(bldh, size(input_image, 1), 1); 
+    end
+    
     lin_bayer = (input_image-black)/(saturation(1)-black);
     lin_bayer = max(0,min(lin_bayer,1));
        
@@ -113,6 +161,7 @@ if strcmp(input_stage,'demosaic')
 
     lin_xyz=apply_cmatrix(lin_rgb, cam2xyz);
     lin_xyz = max(0,min(lin_xyz,1)); % clip
+    
     srgb=xyz2rgb(lin_xyz); % xyz to srgb 
     
     srgb = max(0,min(srgb,1));

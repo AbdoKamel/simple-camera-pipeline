@@ -3,7 +3,7 @@ function [ raw_data, meta_data ] = Load_Data_and_Metadata_from_DNG( image_name )
 % metadata from DNG file "image_name"
 
     t = Tiff(char(image_name), 'r');
-    if t.getTag('BitsPerSample') <= 8 % raw should be at least 10 bps
+    if t.getTag('BitsPerSample') ~= 16 % raw from DNG should be 16-bit
         try
             offsets = getTag(t, 'SubIFD');
             setSubDirectory(t, offsets(1));
