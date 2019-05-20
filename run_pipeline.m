@@ -136,6 +136,11 @@ if strcmp(output_stage , 'demosaic')
     return;
 end
 
+
+% Orientation 
+input_image = FixOrientation(input_image, metadata);
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% color space conversion
 
 if strcmp(input_stage,'demosaic')
