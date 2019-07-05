@@ -12,5 +12,5 @@ imNormRaw = load(fullfile('data', normalizedRawFilename));
 imNormRaw = imNormRaw.x;
 metadata = load(fullfile('data', metadataFilename));
 metadata = metadata.metadata;
-imSrgb2 = run_pipeline(imRaw, metadata, 'raw', 'srgb');
+imSrgb2 = run_pipeline(imNormRaw, metadata, 'normal', 'srgb');
 imwrite(imSrgb2, fullfile('data', [normalizedRawFilename, '_sRGB.png']));
