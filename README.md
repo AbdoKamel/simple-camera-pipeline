@@ -7,6 +7,11 @@ This is the code used to render the sRGB images from the Raw-RGB images of the [
 
 This code is helpful for participants of the real image denoising challenges on CodaLab:
 
+
+[NTIRE 2020 Real Image Denoising Challenge - Track 1: rawRGB](https://competitions.codalab.org/competitions/22230)
+
+[NTIRE 2020 Real Image Denoising Challenge - Track 2: sRGB](https://competitions.codalab.org/competitions/22231)
+
 [NTIRE 2019 Real Image Denoising Challenge - Track 1: Raw-RGB](https://competitions.codalab.org/competitions/21258)
 
 [NTIRE 2019 Real Image Denoising Challenge - Track 2: sRGB](https://competitions.codalab.org/competitions/21266)
