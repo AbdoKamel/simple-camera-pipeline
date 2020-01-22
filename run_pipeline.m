@@ -186,11 +186,16 @@ end
 if strcmp(input_stage,'srgb')
     
     srgb = input_image;
-    tc=[];
-    load('tone_curve.mat','tc');
-    x=uint16(srgb*(size(tc,1)-1) + 1);
-    tone=tc(x);
-
+    
+%     tc=[];
+%     load('tone_curve.mat','tc');
+%     x=uint16(srgb*(size(tc,1)-1) + 1);
+%     tone=tc(x);
+    
+    % simple tone curve
+    srgb = srgb .^ (1/1.2);
+    tone = 3 .* srgb .^ 2 - 2 .* srgb .^ 3;
+    
     % go to next stage
     input_image=tone;
     input_stage='tone';
