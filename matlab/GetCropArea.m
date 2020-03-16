@@ -32,7 +32,7 @@ elseif isfield(metadata, 'extra')
         %cropArea = str2num([char(aacells), char(bbcells)])';
         cropArea = [org(2:-1:1) + act(1:2), org(2:-1:1) + act(1:2) + csz(2:-1:1)];
     end
-elseif isfield(metadata.SubIFDs)
+elseif isfield(metadata, 'SubIFDs')
     if ~isempty(metadata.SubIFDs) ...
             && isfield(metadata.SubIFDs{1, 1}, 'DefaultCropOrigin')
         org = metadata.SubIFDs{1, 1}.DefaultCropOrigin;
@@ -44,6 +44,10 @@ else
     warning('Could not specify CropArea');
     if isfield(metadata, 'ImageHeight') && isfield(metadata, 'ImageWidth') 
         cropArea = [1, 1, metadata.ImageHeight, metadata.ImageWidth];
+    else
+        if isfield(metadata, 'Height') && isfield(metadata, 'Width')
+            cropArea = [1, 1, metadata.Height, metadata.Width];
+        end
     end
 end
 
@@ -54,14 +58,14 @@ end
 %     cropArea(3) = metadata.Width;
 % end
 
-if mod(cropArea(1), 2) ~= 0
-    cropArea(1) = cropArea(1) + 1;
-    cropArea(3) = cropArea(3) + 1;
-end
-if mod(cropArea(2), 2) ~= 0
-    cropArea(2) = cropArea(2) + 1;
-    cropArea(4) = cropArea(4) + 1;
-end
+% if mod(cropArea(1), 2) ~= 0
+%     cropArea(1) = cropArea(1) + 1;
+%     cropArea(3) = cropArea(3) + 1;
+% end
+% if mod(cropArea(2), 2) ~= 0
+%     cropArea(2) = cropArea(2) + 1;
+%     cropArea(4) = cropArea(4) + 1;
+% end
 
 if length(cropArea) ~= 4
     warning('CropArea size is not equal to 4!');
