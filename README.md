@@ -1,12 +1,15 @@
 # simple-camera-pipeline
-A simple and light-weight camera image processing pipeline implemented in MATLAB.
+A simple and light-weight camera image processing pipeline implemented in MATLAB and Python.
 
-Start by running DEMO.m
+Start by running:
+
+Matlab: [matlab/demo.m](matlab/demo.m)
+
+Python: [python/demo.py](python/demo.py)
 
 This is the code used to render the sRGB images from the Raw-RGB images of the [Smartphone Image Denoising Dataset (SIDD)](https://www.eecs.yorku.ca/~kamel/sidd/).
 
 This code is helpful for participants of the real image denoising challenges on CodaLab:
-
 
 [NTIRE 2020 Real Image Denoising Challenge - Track 1: rawRGB](https://competitions.codalab.org/competitions/22230)
 
