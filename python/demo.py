@@ -5,15 +5,14 @@ import numpy as np
 
 from python.pipeline import run_pipeline
 
-# image_path = '../data/colorchart.dng'
-images_dir = 'path/to/dng/images'
-
-image_paths = glob.glob(os.path.join(images_dir, '*.dng'))
 
 params = {
-    'output_stage': 'srgb',  # possible stages: 'normal', 'white_balance', 'demosaic', 'xyz', 'srgb', 'gamma', 'tone'
+    'output_stage': 'srgb',  # options: 'normal', 'white_balance', 'demosaic', 'xyz', 'srgb', 'gamma', 'tone'
 }
 
+# processing a directory
+images_dir = '../data/'
+image_paths = glob.glob(os.path.join(images_dir, '*.dng'))
 for image_path in image_paths:
     output_image = run_pipeline(image_path, params)
     output_image_path = image_path.replace('.dng', '_processed.jpg')
