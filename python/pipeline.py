@@ -26,7 +26,8 @@ def run_pipeline(image_path, params):
     if params['output_stage'] == 'white_balance':
         return white_balanced_image
 
-    demosaiced_image = demosaic(white_balanced_image, metadata['cfa_pattern'], output_channel_order='BGR')
+    demosaiced_image = demosaic(white_balanced_image, metadata['cfa_pattern'], output_channel_order='BGR',
+                                alg_type=params['demosaic_type'])
 
     # fix image orientation, if needed
     demosaiced_image = fix_orientation(demosaiced_image, metadata['orientation'])
