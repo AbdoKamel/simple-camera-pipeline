@@ -5,6 +5,8 @@ import rawpy
 from exifread import Ratio
 from scipy.io import loadmat
 from colour_demosaicing import demosaicing_CFA_Bayer_Menon2007
+import struct
+from .exif_data_formats import exif_formats
 
 
 def get_visible_raw_image(image_path):
@@ -22,6 +24,7 @@ def get_image_tags(image_path):
 def get_metadata(image_path):
     metadata = {}
     tags = get_image_tags(image_path)
+
     metadata['linearization_table'] = get_linearization_table(tags)
     metadata['black_level'] = get_black_level(tags)
     metadata['white_level'] = get_white_level(tags)
@@ -31,6 +34,7 @@ def get_metadata(image_path):
     metadata['color_matrix_1'] = color_matrix_1
     metadata['color_matrix_2'] = color_matrix_2
     metadata['orientation'] = get_orientation(tags)
+    metadata['noise_profile'] = get_noise_profile(tags, image_path)
     # ...
     # fall back to default values, if necessary
     if metadata['black_level'] is None:
@@ -96,11 +100,69 @@ def get_orientation(tags):
     return get_values(tags, possible_tags)
 
 
+def get_noise_profile(tags, image_path=None):
+    possible_keys = ['Image Tag 0xC761', 'Image Tag 51041', 'NoiseProfile', 'Image NoiseProfile']
+    vals = get_values(tags, possible_keys)
+    if vals is None and image_path is not None:
+        # try parsing the binary file
+        vals = parse_noise_profile(image_path)
+    return vals
+
+
+def parse_noise_profile(image_path):
+    i = 0
+    with open(image_path, 'rb') as fid:
+        fid.seek(0)
+        b1 = fid.read(1)
+        b2 = fid.read(1)
+        i += 1
+        bdir = 1 if b1 == b'M' else -1  # byte storage direction: 1: b'M' (Motorola), -1: b'I' (Intel)
+        while b2 and i < 64 * 1024:  # scan first 64K byte
+            if (b1 + b2)[::bdir] == b'\xC7\x61':
+                # found NoiseProfile tag
+                return parse_exif_tag(fid)
+            b1 = b2
+            b2 = fid.read(1)
+            i += 1
+    return None
+
+
 def get_values(tags, possible_keys):
     values = None
     for key in possible_keys:
         if key in tags.keys():
             values = tags[key].values
+    return values
+
+
+def parse_exif_tag(binary_file):
+    """Parses EXIF tag from a binary file starting from the current file pointer and returns the tag values.
+    Assuming the tag name/key has been parsed already."""
+
+    # check data format and size (some values between [1, 12])
+    df = binary_file.read(2)  # [::bdir]
+    data_format = struct.unpack('H', df)[0]  # H: unsigned 2-byte short
+    exif_format = exif_formats[data_format]
+
+    # number of components/values
+    nc = binary_file.read(4)
+    num_vals = struct.unpack('I', nc)[0]  # I: unsigned 4-byte integer
+
+    # total number of data bytes
+    total_bytes = num_vals * exif_format.size
+
+    # seek to data offset (if needed)
+    if total_bytes > 4:
+        doff = binary_file.read(4)
+        data_offset = struct.unpack('I', doff)[0]
+        binary_file.seek(data_offset)
+
+    # read values
+    values = []
+    for k in range(num_vals):
+        val_bytes = binary_file.read(exif_format.size)
+        values.append(struct.unpack(exif_format.short_name, val_bytes)[0])
+
     return values
 
 
