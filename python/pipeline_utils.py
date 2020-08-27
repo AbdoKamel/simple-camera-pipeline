@@ -168,7 +168,7 @@ def parse_exif_tag(binary_file):
 
 def normalize(raw_image, black_level, white_level):
     black_level_mask = black_level
-    if len(black_level) == 4:
+    if black_level is list and len(black_level) == 4:
         if type(black_level[0]) is Ratio:
             black_level = ratios2floats(black_level)
         black_level_mask = np.zeros(raw_image.shape)
