@@ -13,7 +13,7 @@ exif_formats = {
     4: ExifFormat(4, 'unsigned long', 4, 'L'),
     5: ExifFormat(5, 'unsigned rational', 8, ''),
     6: ExifFormat(6, 'signed byte', 1, 'b'),
-    7: ExifFormat(7, 'undefined', 1, ''),
+    7: ExifFormat(7, 'undefined', 1, 'B'),  # consider `undefined` as `unsigned byte`
     8: ExifFormat(8, 'signed short', 2, 'h'),
     9: ExifFormat(9, 'signed long', 4, 'l'),
     10: ExifFormat(10, 'signed rational', 8, ''),
