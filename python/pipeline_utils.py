@@ -1,12 +1,24 @@
+"""
+Author(s):
+Abdelrahman Abdelhamed
+
+Camera pipeline utilities.
+"""
+
+import os
+from fractions import Fraction
+
 import cv2
 import numpy as np
 import exifread
+# from exifread import Ratio
+from exifread.utils import Ratio
 import rawpy
-from exifread import Ratio
 from scipy.io import loadmat
 from colour_demosaicing import demosaicing_CFA_Bayer_Menon2007
 import struct
 from .exif_data_formats import exif_formats
+from .exif_utils import parse_exif_tag, parse_exif, get_tag_values_from_ifds
 
 
 def get_visible_raw_image(image_path):
@@ -16,25 +28,30 @@ def get_visible_raw_image(image_path):
 
 
 def get_image_tags(image_path):
-    f = open(image_path, 'rb')
-    tags = exifread.process_file(f)
+    with open(image_path, 'rb') as f:
+        tags = exifread.process_file(f)
     return tags
+
+
+def get_image_ifds(image_path):
+    ifds = parse_exif(image_path, verbose=False)
+    return ifds
 
 
 def get_metadata(image_path):
     metadata = {}
     tags = get_image_tags(image_path)
-
-    metadata['linearization_table'] = get_linearization_table(tags)
-    metadata['black_level'] = get_black_level(tags)
-    metadata['white_level'] = get_white_level(tags)
-    metadata['cfa_pattern'] = get_cfa_pattern(tags)
-    metadata['as_shot_neutral'] = get_as_shot_neutral(tags)
-    color_matrix_1, color_matrix_2 = get_color_matrices(tags)
+    ifds = get_image_ifds(image_path)
+    metadata['linearization_table'] = get_linearization_table(tags, ifds)
+    metadata['black_level'] = get_black_level(tags, ifds)
+    metadata['white_level'] = get_white_level(tags, ifds)
+    metadata['cfa_pattern'] = get_cfa_pattern(tags, ifds)
+    metadata['as_shot_neutral'] = get_as_shot_neutral(tags, ifds)
+    color_matrix_1, color_matrix_2 = get_color_matrices(tags, ifds)
     metadata['color_matrix_1'] = color_matrix_1
     metadata['color_matrix_2'] = color_matrix_2
-    metadata['orientation'] = get_orientation(tags)
-    metadata['noise_profile'] = get_noise_profile(tags, image_path)
+    metadata['orientation'] = get_orientation(tags, ifds)
+    metadata['noise_profile'] = get_noise_profile(tags, ifds)
     # ...
     # fall back to default values, if necessary
     if metadata['black_level'] is None:
@@ -62,32 +79,44 @@ def get_metadata(image_path):
     return metadata
 
 
-def get_linearization_table(tags):
+def get_linearization_table(tags, ifds):
     possible_keys = ['Image Tag 0xC618', 'Image Tag 50712', 'LinearizationTable', 'Image LinearizationTable']
     return get_values(tags, possible_keys)
 
 
-def get_black_level(tags):
+def get_black_level(tags, ifds):
     possible_keys = ['Image Tag 0xC61A', 'Image Tag 50714', 'BlackLevel', 'Image BlackLevel']
-    return get_values(tags, possible_keys)
+    vals = get_values(tags, possible_keys)
+    if vals is None:
+        # print("Black level not found in exifread tags. Searching IFDs.")
+        vals = get_tag_values_from_ifds(50714, ifds)
+    return vals
 
 
-def get_white_level(tags):
+def get_white_level(tags, ifds):
     possible_keys = ['Image Tag 0xC61D', 'Image Tag 50717', 'WhiteLevel', 'Image WhiteLevel']
-    return get_values(tags, possible_keys)
+    vals = get_values(tags, possible_keys)
+    if vals is None:
+        # print("White level not found in exifread tags. Searching IFDs.")
+        vals = get_tag_values_from_ifds(50717, ifds)
+    return vals
 
 
-def get_cfa_pattern(tags):
+def get_cfa_pattern(tags, ifds):
     possible_keys = ['CFAPattern', 'Image CFAPattern']
-    return get_values(tags, possible_keys)
+    vals = get_values(tags, possible_keys)
+    if vals is None:
+        # print("CFAPattern not found in exifread tags. Searching IFDs.")
+        vals = get_tag_values_from_ifds(33422, ifds)
+    return vals
 
 
-def get_as_shot_neutral(tags):
+def get_as_shot_neutral(tags, ifds):
     possible_keys = ['Image Tag 0xC628', 'Image Tag 50728', 'AsShotNeutral', 'Image AsShotNeutral']
     return get_values(tags, possible_keys)
 
 
-def get_color_matrices(tags):
+def get_color_matrices(tags, ifds):
     possible_keys_1 = ['Image Tag 0xC621', 'Image Tag 50721', 'ColorMatrix1', 'Image ColorMatrix1']
     color_matrix_1 = get_values(tags, possible_keys_1)
     possible_keys_2 = ['Image Tag 0xC622', 'Image Tag 50722', 'ColorMatrix2', 'Image ColorMatrix2']
@@ -95,36 +124,18 @@ def get_color_matrices(tags):
     return color_matrix_1, color_matrix_2
 
 
-def get_orientation(tags):
+def get_orientation(tags, ifds):
     possible_tags = ['Orientation', 'Image Orientation']
     return get_values(tags, possible_tags)
 
 
-def get_noise_profile(tags, image_path=None):
+def get_noise_profile(tags, ifds):
     possible_keys = ['Image Tag 0xC761', 'Image Tag 51041', 'NoiseProfile', 'Image NoiseProfile']
     vals = get_values(tags, possible_keys)
-    if vals is None and image_path is not None:
-        # try parsing the binary file
-        vals = parse_noise_profile(image_path)
+    if vals is None:
+        # print("Noise profile not found in exifread tags. Searching IFDs.")
+        vals = get_tag_values_from_ifds(51041, ifds)
     return vals
-
-
-def parse_noise_profile(image_path):
-    i = 0
-    with open(image_path, 'rb') as fid:
-        fid.seek(0)
-        b1 = fid.read(1)
-        b2 = fid.read(1)
-        i += 1
-        bdir = 1 if b1 == b'M' else -1  # byte storage direction: 1: b'M' (Motorola), -1: b'I' (Intel)
-        while b2 and i < 64 * 1024:  # scan first 64K byte
-            if (b1 + b2)[::bdir] == b'\xC7\x61':
-                # found NoiseProfile tag
-                return parse_exif_tag(fid)
-            b1 = b2
-            b2 = fid.read(1)
-            i += 1
-    return None
 
 
 def get_values(tags, possible_keys):
@@ -135,40 +146,13 @@ def get_values(tags, possible_keys):
     return values
 
 
-def parse_exif_tag(binary_file):
-    """Parses EXIF tag from a binary file starting from the current file pointer and returns the tag values.
-    Assuming the tag name/key has been parsed already."""
-
-    # check data format and size (some values between [1, 12])
-    df = binary_file.read(2)  # [::bdir]
-    data_format = struct.unpack('H', df)[0]  # H: unsigned 2-byte short
-    exif_format = exif_formats[data_format]
-
-    # number of components/values
-    nc = binary_file.read(4)
-    num_vals = struct.unpack('I', nc)[0]  # I: unsigned 4-byte integer
-
-    # total number of data bytes
-    total_bytes = num_vals * exif_format.size
-
-    # seek to data offset (if needed)
-    if total_bytes > 4:
-        doff = binary_file.read(4)
-        data_offset = struct.unpack('I', doff)[0]
-        binary_file.seek(data_offset)
-
-    # read values
-    values = []
-    for k in range(num_vals):
-        val_bytes = binary_file.read(exif_format.size)
-        values.append(struct.unpack(exif_format.short_name, val_bytes)[0])
-
-    return values
-
-
 def normalize(raw_image, black_level, white_level):
+    if type(black_level) is list and len(black_level) == 1:
+        black_level = float(black_level[0])
+    if type(white_level) is list and len(white_level) == 1:
+        white_level = float(white_level[0])
     black_level_mask = black_level
-    if black_level is list and len(black_level) == 4:
+    if type(black_level) is list and len(black_level) == 4:
         if type(black_level[0]) is Ratio:
             black_level = ratios2floats(black_level)
         black_level_mask = np.zeros(raw_image.shape)
@@ -176,7 +160,10 @@ def normalize(raw_image, black_level, white_level):
         step2 = 2
         for i, idx in enumerate(idx2by2):
             black_level_mask[idx[0]::step2, idx[1]::step2] = black_level[i]
-    normalized_image = (raw_image - black_level_mask) / (white_level - black_level_mask)
+    normalized_image = raw_image.astype(np.float32) - black_level_mask
+    # if some values were smaller than black level
+    normalized_image[normalized_image < 0] = 0
+    normalized_image = normalized_image / (white_level - black_level_mask)
     return normalized_image
 
 
@@ -337,6 +324,19 @@ def fix_orientation(image, orientation):
     return image
 
 
+def reverse_orientation(image, orientation):
+    # 1 = Horizontal(normal)
+    # 2 = Mirror horizontal
+    # 3 = Rotate 180
+    # 4 = Mirror vertical
+    # 5 = Mirror horizontal and rotate 270 CW
+    # 6 = Rotate 90 CW
+    # 7 = Mirror horizontal and rotate 90 CW
+    # 8 = Rotate 270 CW
+    rev_orientations = np.array([1, 2, 3, 4, 5, 8, 7, 6])
+    return fix_orientation(image, rev_orientations[orientation - 1])
+
+
 def apply_gamma(x):
     return x ** (1.0 / 2.2)
 
@@ -345,7 +345,8 @@ def apply_tone_map(x):
     # simple tone curve
     # return 3 * x ** 2 - 2 * x ** 3
 
-    tone_curve = loadmat('tone_curve.mat')
+    # tone_curve = loadmat('tone_curve.mat')
+    tone_curve = loadmat(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'tone_curve.mat'))
     tone_curve = tone_curve['tc']
     x = np.round(x * (len(tone_curve) - 1)).astype(int)
     tone_mapped_image = np.squeeze(tone_curve[x])
