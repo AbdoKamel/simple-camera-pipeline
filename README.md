@@ -5,7 +5,11 @@ Start by running:
 
 Matlab: [matlab/demo.m](matlab/demo.m)
 
-Python: [python/demo.py](python/demo.py)
+Python: 
+
+[python/demo1.py](python/demo1.py)
+
+[python/demo2.py](python/demo2.py)
 
 Python requirements ([python/requirements.txt](python/requirements.txt)) -- _other versions may work_
 ```
