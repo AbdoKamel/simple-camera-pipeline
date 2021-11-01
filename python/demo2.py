@@ -11,7 +11,7 @@ params = {
     'output_stage': 'tone',  # options: 'normal', 'white_balance', 'demosaic', 'xyz', 'srgb', 'gamma', 'tone'
     'save_as': 'png',  # options: 'jpg', 'png', 'tif', etc.
     'demosaic_type': 'EA',
-    'save_dtype': np.uint16
+    'save_dtype': np.uint8
 }
 
 # processing a directory
