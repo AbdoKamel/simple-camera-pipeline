@@ -17,6 +17,8 @@ import rawpy
 from scipy.io import loadmat
 from colour_demosaicing import demosaicing_CFA_Bayer_Menon2007
 import struct
+
+from .dng_opcode import parse_opcode_lists
 from .exif_data_formats import exif_formats
 from .exif_utils import parse_exif_tag, parse_exif, get_tag_values_from_ifds
 
@@ -53,6 +55,10 @@ def get_metadata(image_path):
     metadata['orientation'] = get_orientation(tags, ifds)
     metadata['noise_profile'] = get_noise_profile(tags, ifds)
     # ...
+
+    # opcode lists
+    metadata['opcode_lists'] = parse_opcode_lists(ifds)
+
     # fall back to default values, if necessary
     if metadata['black_level'] is None:
         metadata['black_level'] = 0
