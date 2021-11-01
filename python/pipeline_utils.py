@@ -180,6 +180,79 @@ def ratios2floats(ratios):
     return floats
 
 
+def lens_shading_correction(raw_image, gain_map_opcode, bayer_pattern, gain_map=None, clip=True):
+    """
+    Apply lens shading correction map.
+    :param raw_image: Input normalized (in [0, 1]) raw image.
+    :param gain_map_opcode: Gain map opcode.
+    :param bayer_pattern: Bayer pattern (RGGB, GRBG, ...).
+    :param gain_map: Optional gain map to replace gain_map_opcode. 1 or 4 channels in order: R, Gr, Gb, and B.
+    :param clip: Whether to clip result image to [0, 1].
+    :return: Image with gain map applied; lens shading corrected.
+    """
+
+    if gain_map is None and gain_map_opcode:
+        gain_map = gain_map_opcode.data['map_gain_2d']
+
+    # resize gain map, make it 4 channels, if needed
+    gain_map = cv2.resize(gain_map, dsize=(raw_image.shape[1] // 2, raw_image.shape[0] // 2),
+                          interpolation=cv2.INTER_LINEAR)
+    if len(gain_map.shape) == 2:
+        gain_map = np.tile(gain_map[..., np.newaxis], [1, 1, 4])
+
+    if gain_map_opcode:
+        # TODO: consider other parameters
+
+        top = gain_map_opcode.data['top']
+        left = gain_map_opcode.data['left']
+        bottom = gain_map_opcode.data['bottom']
+        right = gain_map_opcode.data['right']
+        rp = gain_map_opcode.data['row_pitch']
+        cp = gain_map_opcode.data['col_pitch']
+
+        gm_w = right - left
+        gm_h = bottom - top
+
+        # gain_map = cv2.resize(gain_map, dsize=(gm_w, gm_h), interpolation=cv2.INTER_LINEAR)
+
+        # TODO
+        # if top > 0:
+        #     pass
+        # elif left > 0:
+        #     left_col = gain_map[:, 0:1]
+        #     rep_left_col = np.tile(left_col, [1, left])
+        #     gain_map = np.concatenate([rep_left_col, gain_map], axis=1)
+        # elif bottom < raw_image.shape[0]:
+        #     pass
+        # elif right < raw_image.shape[1]:
+        #     pass
+
+    result_image = raw_image.copy()
+
+    # one channel
+    # result_image[::rp, ::cp] *= gain_map[::rp, ::cp]
+
+    # per bayer channel
+    upper_left_idx = [[0, 0], [0, 1], [1, 0], [1, 1]]
+    bayer_pattern_idx = np.array(bayer_pattern)
+    # blue channel index --> 3
+    bayer_pattern_idx[bayer_pattern_idx == 2] = 3
+    # second green channel index --> 2
+    if bayer_pattern_idx[3] == 1:
+        bayer_pattern_idx[3] = 2
+    else:
+        bayer_pattern_idx[2] = 2
+    for c in range(4):
+        i0 = upper_left_idx[c][0]
+        j0 = upper_left_idx[c][1]
+        result_image[i0::2, j0::2] *= gain_map[:, :, bayer_pattern_idx[c]]
+
+    if clip:
+        result_image = np.clip(result_image, 0.0, 1.0)
+
+    return result_image
+
+
 def white_balance(normalized_image, as_shot_neutral, cfa_pattern):
     if type(as_shot_neutral[0]) is Ratio:
         as_shot_neutral = ratios2floats(as_shot_neutral)

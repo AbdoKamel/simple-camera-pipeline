@@ -1,6 +1,7 @@
 import numpy as np
 from python.pipeline_utils import get_visible_raw_image, get_metadata, normalize, white_balance, demosaic, \
-    apply_color_space_transform, transform_xyz_to_srgb, apply_gamma, apply_tone_map, fix_orientation
+    apply_color_space_transform, transform_xyz_to_srgb, apply_gamma, apply_tone_map, fix_orientation, \
+    lens_shading_correction
 
 
 def run_pipeline_v2(image_or_path, params=None, metadata=None, fix_orient=True):
@@ -31,6 +32,22 @@ def run_pipeline_v2(image_or_path, params=None, metadata=None, fix_orient=True):
         params_['input_stage'] = 'normal'
 
     current_stage = 'normal'
+
+    if params_['output_stage'] == current_stage:
+        return current_image
+
+    if params_['input_stage'] == current_stage:
+        gain_map_opcode = None
+        if 'opcode_lists' in metadata:
+            if 51009 in metadata['opcode_lists']:
+                opcode_list_2 = metadata['opcode_lists'][51009]
+                gain_map_opcode = opcode_list_2[9]
+        if gain_map_opcode is not None:
+            current_image = lens_shading_correction(current_image, gain_map_opcode=gain_map_opcode,
+                                                    bayer_pattern=metadata['cfa_pattern'])
+        params_['input_stage'] = 'lens_shading_correction'
+
+    current_stage = 'lens_shading_correction'
 
     if params_['output_stage'] == current_stage:
         return current_image
