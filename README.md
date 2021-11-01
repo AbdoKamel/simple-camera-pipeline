@@ -1,5 +1,15 @@
 # simple-camera-pipeline
-A simple and light-weight camera image processing pipeline implemented in MATLAB and Python.
+A simple and light-weight camera image signal processor (ISP) pipeline implemented in MATLAB and Python.
+
+Stages currently included in the pipeline:
+* Normalization
+* Lens shading correction (Python only)
+* White balance
+* Demosaicing
+* Color space transformation (CIE XYZ)
+* Color space transformation (sRGB)
+* Gamma correction
+* Global tone mapping
 
 Start by running:
 
