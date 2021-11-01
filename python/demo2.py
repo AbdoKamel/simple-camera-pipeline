@@ -7,7 +7,7 @@ from python.pipeline import run_pipeline_v2
 from python.pipeline_utils import get_visible_raw_image, get_metadata
 
 params = {
-    'ipnut_stage': 'raw',  # options: 'raw', 'normal', 'white_balance', 'demosaic', 'xyz', 'srgb', 'gamma', 'tone'
+    'input_stage': 'raw',  # options: 'raw', 'normal', 'white_balance', 'demosaic', 'xyz', 'srgb', 'gamma', 'tone'
     'output_stage': 'tone',  # options: 'normal', 'white_balance', 'demosaic', 'xyz', 'srgb', 'gamma', 'tone'
     'save_as': 'png',  # options: 'jpg', 'png', 'tif', etc.
     'demosaic_type': 'menon2007',
