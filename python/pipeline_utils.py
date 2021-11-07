@@ -189,7 +189,6 @@ def vignetting_correction(raw_image, vignetting_opcode):
     k4 = struct.unpack('>d', data[32:40])[0]
     cx_hat = struct.unpack('>d', data[40:48])[0]
     cy_hat = struct.unpack('>d', data[48:56])[0]
-    print(k0, k1, k2, k3, k4, cx_hat, cy_hat)
 
     #pixel coordinates of top left pixel
     x0 = 0
