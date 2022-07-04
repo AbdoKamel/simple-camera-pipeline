@@ -11,6 +11,7 @@ from fractions import Fraction
 import cv2
 import numpy as np
 import exifread
+import math
 # from exifread import Ratio
 from exifread.utils import Ratio
 import rawpy
@@ -178,6 +179,45 @@ def ratios2floats(ratios):
     for ratio in ratios:
         floats.append(float(ratio.num) / ratio.den)
     return floats
+
+def vignetting_correction(raw_image, vignetting_opcode):
+    data = vignetting_opcode.data
+    k0 = struct.unpack('>d', data[0:8])[0]
+    k1 = struct.unpack('>d', data[8:16])[0]
+    k2 = struct.unpack('>d', data[16:24])[0]
+    k3 = struct.unpack('>d', data[24:32])[0]
+    k4 = struct.unpack('>d', data[32:40])[0]
+    cx_hat = struct.unpack('>d', data[40:48])[0]
+    cy_hat = struct.unpack('>d', data[48:56])[0]
+
+    #pixel coordinates of top left pixel
+    x0 = 0
+    y0 = 0
+
+    #pixel coordinates of bottom right pixel
+    x1 = raw_image.shape[0]
+    y1 = raw_image.shape[1]
+
+    cx = x0 + cx_hat*(x1-x0)
+    cy = y0 + cy_hat*(y1-y0)
+
+    mx = max(abs(x0-cx), abs(x1-cx))
+    my = max(abs(y0-cy), abs(y1-cy))
+
+    m = math.sqrt(pow(mx, 2) + pow(my, 2))
+
+    meshgrid = np.mgrid[0:raw_image.shape[0],0:raw_image.shape[1]]
+
+    x = meshgrid[0]
+    y = meshgrid[1]
+
+    sum = np.square(x - cx) + np.square(y - cy)
+    r = (1/m)*np.sqrt(sum)
+    g = k0 * np.power(r, 2) + k1*np.power(r,4) + k2*np.power(r,6) + k3*np.power(r,8) + k4*np.power(r,10)
+    g = g+1
+    for c in range(3):
+        raw_image[:,:,c] = raw_image[:,:,c]* g
+    return raw_image
 
 
 def lens_shading_correction(raw_image, gain_map_opcode, bayer_pattern, gain_map=None, clip=True):
