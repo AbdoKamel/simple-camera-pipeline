@@ -73,11 +73,11 @@ def get_metadata(image_path):
         metadata['as_shot_neutral'] = [1, 1, 1]
         print("AsShotNeutral is None; using [1, 1, 1]")
     if metadata['color_matrix_1'] is None:
-        metadata['color_matrix_1'] = [1] * 9
-        print("ColorMatrix1 is None; using [1, 1, 1, 1, 1, 1, 1, 1, 1]")
+        metadata['color_matrix_1'] = np.eye(3)
+        print("ColorMatrix1 is None; using\n" + str(metadata['color_matrix_1']))
     if metadata['color_matrix_2'] is None:
-        metadata['color_matrix_2'] = [1] * 9
-        print("ColorMatrix2 is None; using [1, 1, 1, 1, 1, 1, 1, 1, 1]")
+        metadata['color_matrix_2'] = np.eye(3)
+        print("ColorMatrix2 is None; using\n" + str(metadata['color_matrix_2']))
     if metadata['orientation'] is None:
         metadata['orientation'] = 0
         print("Orientation is None; using 0.")
